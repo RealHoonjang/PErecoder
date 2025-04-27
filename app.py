@@ -316,5 +316,70 @@ def get_exercise_types():
     finally:
         session.close()
 
+@app.route('/add_student', methods=['POST'])
+def add_student():
+    data = request.json
+    user_id = flask_session['user_id']
+    session = Session()
+    try:
+        student = Student(
+            class_number=data['class_number'],
+            student_number=data['student_number'],
+            name=data['name'],
+            user_id=user_id
+        )
+        session.add(student)
+        session.commit()
+        return jsonify({'message': '학생이 추가되었습니다.'})
+    except Exception as e:
+        session.rollback()
+        return jsonify({'error': str(e)}), 500
+    finally:
+        session.close()
+
+@app.route('/get_classes')
+def get_classes():
+    user_id = flask_session['user_id']
+    session = Session()
+    try:
+        classes = session.query(Student.class_number).filter_by(user_id=user_id).distinct().all()
+        return jsonify([c[0] for c in classes])
+    finally:
+        session.close()
+
+@app.route('/get_students_by_class/<class_number>')
+def get_students_by_class(class_number):
+    user_id = flask_session['user_id']
+    session = Session()
+    try:
+        students = session.query(Student).filter_by(user_id=user_id, class_number=class_number).all()
+        student_list = [{
+            'id': student.id,
+            'student_number': student.student_number,
+            'name': student.name
+        } for student in students]
+        return jsonify(student_list)
+    finally:
+        session.close()
+
+@app.route('/delete_all_students', methods=['DELETE'])
+def delete_all_students():
+    user_id = flask_session['user_id']
+    session = Session()
+    try:
+        # 학생 id 목록
+        student_ids = [s.id for s in session.query(Student).filter_by(user_id=user_id).all()]
+        # 운동 기록 삭제
+        session.query(ExerciseRecord).filter(ExerciseRecord.student_id.in_(student_ids)).delete(synchronize_session=False)
+        # 학생 삭제
+        session.query(Student).filter_by(user_id=user_id).delete()
+        session.commit()
+        return jsonify({'message': '학생 명단이 모두 삭제되었습니다.'})
+    except Exception as e:
+        session.rollback()
+        return jsonify({'error': str(e)}), 500
+    finally:
+        session.close()
+
 if __name__ == '__main__':
     app.run(debug=True) 
