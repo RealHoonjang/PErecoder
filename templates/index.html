@@ -181,6 +181,13 @@
                         선택한 학생의 기록이 없습니다.
                     </div>
                 </div>
+                <div class="mb-3">
+                    <label for="downloadClassSelect" class="form-label">반 선택 (엑셀 다운로드)</label>
+                    <select class="form-control" id="downloadClassSelect">
+                        <option value="">반을 선택하세요</option>
+                    </select>
+                    <button class="btn btn-success mt-2" id="downloadExcelBtn">엑셀 다운로드</button>
+                </div>
             </div>
         </div>
     </div>
@@ -467,7 +474,7 @@
             });
         }
 
-        // 반 선택 시 학생 목록 불러오기
+        // 반 선택 시 해당 반의 학생만 불러오기
         async function loadStudentsByClass(classNumber) {
             const studentSelect = document.getElementById('studentSelect');
             studentSelect.innerHTML = '<option value="">학생을 선택하세요</option>';
@@ -487,6 +494,7 @@
         });
 
         document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('studentSelect').innerHTML = '<option value="">학생을 선택하세요</option>';
             loadClasses();
         });
 
@@ -504,6 +512,31 @@
             } else {
                 alert(result.error || '삭제 중 오류 발생');
             }
+        });
+
+        // 반 목록 불러오기 (다운로드용)
+        async function loadDownloadClasses() {
+            const res = await fetch('/get_classes');
+            const classes = await res.json();
+            const classSelect = document.getElementById('downloadClassSelect');
+            classSelect.innerHTML = '<option value="">반을 선택하세요</option>';
+            classes.forEach(cls => {
+                const option = document.createElement('option');
+                option.value = cls;
+                option.textContent = cls + '반';
+                classSelect.appendChild(option);
+            });
+        }
+        document.addEventListener('DOMContentLoaded', loadDownloadClasses);
+
+        // 엑셀 다운로드 버튼 이벤트
+        document.getElementById('downloadExcelBtn').addEventListener('click', function() {
+            const classNumber = document.getElementById('downloadClassSelect').value;
+            if (!classNumber) {
+                alert('반을 선택하세요.');
+                return;
+            }
+            window.location.href = `/download_class_records/${classNumber}`;
         });
     </script>
 </body>
