@@ -58,8 +58,8 @@ print("서버 실행 시작")
 
 # 폰트 경로 지정
 font_path = 'fonts/NotoSansCJKkr-Regular.otf'
-fontprop = fm.FontProperties(fname=font_path)
-matplotlib.rc('font', family=fontprop.get_name())
+matplotlib.rcParams['font.family'] = fm.FontProperties(fname=font_path).get_name()
+matplotlib.rcParams['font.sans-serif'] = [fm.FontProperties(fname=font_path).get_name()]
 matplotlib.rcParams['axes.unicode_minus'] = False
 
 @app.route('/')
