@@ -381,5 +381,56 @@ def delete_all_students():
     finally:
         session.close()
 
+@app.route('/download_class_records/<class_number>')
+def download_class_records(class_number):
+    user_id = flask_session['user_id']
+    session = Session()
+    try:
+        # 해당 반의 학생 조회
+        students = session.query(Student).filter_by(user_id=user_id, class_number=class_number).all()
+        if not students:
+            return jsonify({'error': '해당 반의 학생이 없습니다.'}), 404
+
+        # 학생별 기록 정리
+        data = []
+        for student in students:
+            # 학생의 모든 기록을 종목별로 묶기
+            records = session.query(ExerciseRecord).filter_by(student_id=student.id, user_id=user_id).order_by(ExerciseRecord.exercise_type, ExerciseRecord.date).all()
+            # 종목별로 그룹핑
+            record_dict = {}
+            for rec in records:
+                if rec.exercise_type not in record_dict:
+                    record_dict[rec.exercise_type] = []
+                record_dict[rec.exercise_type].append(rec.value)
+            # 각 종목별로 한 줄씩
+            for exercise_type, values in record_dict.items():
+                row = {
+                    '반': student.class_number,
+                    '번호': student.student_number,
+                    '성명': student.name,
+                    '종목': exercise_type
+                }
+                # 회차별 기록
+                for idx, v in enumerate(values, 1):
+                    row[f'{idx}회차'] = v
+                data.append(row)
+        if not data:
+            return jsonify({'error': '기록이 없습니다.'}), 404
+
+        df = pd.DataFrame(data)
+        # 컬럼 순서 정렬
+        base_cols = ['반', '번호', '성명', '종목']
+        other_cols = sorted([c for c in df.columns if c not in base_cols], key=lambda x: int(x.replace('회차','').replace(' ','').replace('차','')) if '회차' in x else 0)
+        df = df[base_cols + other_cols]
+
+        output = BytesIO()
+        with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+            df.to_excel(writer, index=False, sheet_name=f"{class_number}반")
+        output.seek(0)
+        filename = f"{class_number}반_기록.xlsx"
+        return send_file(output, as_attachment=True, download_name=filename, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    finally:
+        session.close()
+
 if __name__ == '__main__':
     app.run(debug=True) 
