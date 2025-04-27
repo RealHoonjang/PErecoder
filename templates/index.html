@@ -122,7 +122,11 @@
                             </div>
                             <div class="mb-3">
                                 <label for="exerciseType" class="form-label">운동 종목</label>
-                                <input type="text" class="form-control" id="exerciseType" required>
+                                <div class="input-group">
+                                    <select class="form-control" id="exerciseType" required></select>
+                                    <input type="text" class="form-control" id="newExerciseType" placeholder="새 종목 입력">
+                                    <button type="button" class="btn btn-success" id="addExerciseTypeBtn">추가</button>
+                                </div>
                             </div>
                             <div class="mb-3">
                                 <label for="value" class="form-label">기록</label>
@@ -253,6 +257,7 @@
                 
                 if (!result.error) {
                     viewRecords(studentId);
+                    loadExerciseTypes();
                 }
             } catch (error) {
                 messageDiv.textContent = '기록 추가 중 오류가 발생했습니다.';
@@ -342,6 +347,59 @@
         // 페이지 로드시 기록 표도 초기화
         document.addEventListener('DOMContentLoaded', function() {
             renderRecordTable(document.getElementById('viewStudentSelect').value);
+        });
+
+        // 종목 목록 불러오기 및 드롭박스/삭제 버튼 렌더링
+        async function loadExerciseTypes() {
+            const res = await fetch('/get_exercise_types');
+            const types = await res.json();
+            const select = document.getElementById('exerciseType');
+            select.innerHTML = '';
+            types.forEach(type => {
+                const option = document.createElement('option');
+                option.value = type.name;
+                option.textContent = type.name;
+                select.appendChild(option);
+            });
+            // 종목 삭제 버튼 리스트
+            const listDiv = document.getElementById('exerciseTypeList');
+            listDiv.innerHTML = types.map(type => `<span class="badge bg-secondary me-1">${type.name} <button onclick="deleteExerciseType(${type.id})" class="btn btn-sm btn-danger ms-1">삭제</button></span>`).join(' ');
+        }
+
+        // 종목 추가
+        async function addExerciseType() {
+            const name = document.getElementById('newExerciseType').value.trim();
+            if (!name) return alert('종목명을 입력하세요.');
+            const res = await fetch('/add_exercise_type', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name })
+            });
+            const result = await res.json();
+            if (result.message) {
+                document.getElementById('newExerciseType').value = '';
+                loadExerciseTypes();
+            } else {
+                alert(result.error || '추가 중 오류 발생');
+            }
+        }
+
+        // 종목 삭제
+        async function deleteExerciseType(id) {
+            if (!confirm('정말 삭제하시겠습니까?')) return;
+            const res = await fetch(`/delete_exercise_type/${id}`, { method: 'DELETE' });
+            const result = await res.json();
+            if (result.message) {
+                loadExerciseTypes();
+            } else {
+                alert(result.error || '삭제 중 오류 발생');
+            }
+        }
+
+        document.getElementById('addExerciseTypeBtn').addEventListener('click', addExerciseType);
+
+        document.addEventListener('DOMContentLoaded', function() {
+            loadExerciseTypes();
         });
     </script>
 </body>
