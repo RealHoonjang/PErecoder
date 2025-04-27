@@ -10,9 +10,10 @@ from sqlalchemy.orm import sessionmaker
 import os
 import matplotlib
 from werkzeug.security import generate_password_hash, check_password_hash
+from flask import session as flask_session
 
 app = Flask(__name__)
-app.secret_key = 'your_secret_key_here'  # 세션용 시크릿키
+app.secret_key = os.environ.get('SECRET_KEY', 'default_secret_key')
 Base = declarative_base()
 
 # 데이터베이스 설정
@@ -43,6 +44,12 @@ class ExerciseRecord(Base):
     value = Column(Float)
     user_id = Column(Integer)
 
+class ExerciseType(Base):
+    __tablename__ = 'exercise_types'
+    id = Column(Integer, primary_key=True)
+    name = Column(String(50), nullable=False)
+    user_id = Column(Integer)
+
 # 데이터베이스 테이블 생성
 Base.metadata.create_all(engine)
 
@@ -69,7 +76,7 @@ def upload_students():
     
     session = Session()
     try:
-        user_id = session['user_id']
+        user_id = flask_session['user_id']
         # 파일을 메모리에 로드
         file_content = file.read()
         df = pd.read_excel(BytesIO(file_content))
@@ -110,7 +117,7 @@ def upload_students():
 def get_students():
     session = Session()
     try:
-        user_id = session['user_id']
+        user_id = flask_session['user_id']
         students = session.query(Student).filter_by(user_id=user_id).all()
         student_list = [{
             'id': student.id,
@@ -127,7 +134,7 @@ def add_record():
     data = request.json
     session = Session()
     try:
-        user_id = session['user_id']
+        user_id = flask_session['user_id']
         # 학생이 해당 user_id의 학생인지 확인
         student = session.query(Student).filter_by(id=data['student_id'], user_id=user_id).first()
         if not student:
@@ -152,7 +159,7 @@ def add_record():
 def get_records(student_id):
     session = Session()
     try:
-        user_id = session['user_id']
+        user_id = flask_session['user_id']
         # 해당 user_id의 학생만
         student = session.query(Student).filter_by(id=student_id, user_id=user_id).first()
         if not student:
@@ -172,7 +179,7 @@ def get_records(student_id):
 def get_graph(student_id):
     session = Session()
     try:
-        user_id = session['user_id']
+        user_id = flask_session['user_id']
         student = session.query(Student).filter_by(id=student_id, user_id=user_id).first()
         if not student:
             return jsonify({'error': '기록이 없습니다.'}), 404
@@ -203,7 +210,7 @@ def get_graph(student_id):
 def delete_record(record_id):
     session = Session()
     try:
-        user_id = session['user_id']
+        user_id = flask_session['user_id']
         record = session.query(ExerciseRecord).filter_by(id=record_id, user_id=user_id).first()
         if not record:
             return jsonify({'error': '기록을 찾을 수 없습니다.'}), 404
@@ -242,8 +249,8 @@ def login():
         user = session_db.query(User).filter_by(username=username).first()
         session_db.close()
         if user and check_password_hash(user.password_hash, password):
-            session['user_id'] = user.id
-            session['username'] = user.username
+            flask_session['user_id'] = user.id
+            flask_session['username'] = user.username
             flash('로그인 성공!', 'success')
             return redirect(url_for('index'))
         else:
@@ -253,15 +260,61 @@ def login():
 
 @app.route('/logout')
 def logout():
-    session.clear()
+    flask_session.clear()
     flash('로그아웃 되었습니다.', 'info')
     return redirect(url_for('login'))
 
 @app.before_request
 def require_login():
     allowed_routes = ['login', 'register', 'static']
-    if request.endpoint not in allowed_routes and 'user_id' not in session:
+    if request.endpoint not in allowed_routes and 'user_id' not in flask_session:
         return redirect(url_for('login'))
+
+@app.route('/add_exercise_type', methods=['POST'])
+def add_exercise_type():
+    data = request.json
+    name = data.get('name')
+    user_id = flask_session['user_id']
+    session = Session()
+    try:
+        if session.query(ExerciseType).filter_by(name=name, user_id=user_id).first():
+            return jsonify({'error': '이미 존재하는 종목입니다.'}), 400
+        etype = ExerciseType(name=name, user_id=user_id)
+        session.add(etype)
+        session.commit()
+        return jsonify({'message': '종목이 추가되었습니다.'})
+    except Exception as e:
+        session.rollback()
+        return jsonify({'error': str(e)}), 500
+    finally:
+        session.close()
+
+@app.route('/delete_exercise_type/<int:type_id>', methods=['DELETE'])
+def delete_exercise_type(type_id):
+    user_id = flask_session['user_id']
+    session = Session()
+    try:
+        etype = session.query(ExerciseType).filter_by(id=type_id, user_id=user_id).first()
+        if not etype:
+            return jsonify({'error': '종목을 찾을 수 없습니다.'}), 404
+        session.delete(etype)
+        session.commit()
+        return jsonify({'message': '종목이 삭제되었습니다.'})
+    except Exception as e:
+        session.rollback()
+        return jsonify({'error': str(e)}), 500
+    finally:
+        session.close()
+
+@app.route('/get_exercise_types')
+def get_exercise_types():
+    user_id = flask_session['user_id']
+    session = Session()
+    try:
+        types = session.query(ExerciseType).filter_by(user_id=user_id).all()
+        return jsonify([{'id': t.id, 'name': t.name} for t in types])
+    finally:
+        session.close()
 
 if __name__ == '__main__':
     app.run(debug=True) 
