@@ -113,6 +113,7 @@
                             <b>안내사항:</b> 학생 명단을 엑셀로 업로드할 경우, <b>엑셀 파일에 <span style='color:#4a90e2;'>반, 번호, 성명</span>이 포함</b>되어 있어야 정상적으로 업로드됩니다.<br>
                             (예시: 첫 번째 행이 <b>반, 번호, 성명</b>이어야 하며, 각 학생의 정보가 그 아래에 위치해야 합니다.)
                         </div>
+                        <button type="button" class="btn btn-danger mt-2" id="deleteAllStudentsBtn">학생 명단 전체 삭제</button>
                     </div>
                 </div>
             </div>
@@ -125,12 +126,6 @@
                     <div class="card-body">
                         <form id="recordForm">
                             <div class="mb-3">
-                                <label for="studentSelect" class="form-label">학생 선택</label>
-                                <select class="form-control" id="studentSelect" required>
-                                    <option value="">학생을 선택하세요</option>
-                                </select>
-                            </div>
-                            <div class="mb-3">
                                 <label for="date" class="form-label">날짜</label>
                                 <input type="date" class="form-control" id="date" required>
                             </div>
@@ -141,6 +136,18 @@
                                     <input type="text" class="form-control" id="newExerciseType" placeholder="새 종목 입력">
                                     <button type="button" class="btn btn-success" id="addExerciseTypeBtn">추가</button>
                                 </div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="classSelect" class="form-label">반 선택</label>
+                                <select class="form-control" id="classSelect">
+                                    <option value="">반을 선택하세요</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label for="studentSelect" class="form-label">학생 선택</label>
+                                <select class="form-control" id="studentSelect" required>
+                                    <option value="">학생을 선택하세요</option>
+                                </select>
                             </div>
                             <div class="mb-3">
                                 <label for="value" class="form-label">기록</label>
@@ -443,6 +450,59 @@
                 msgDiv.textContent = result.error || '추가 중 오류 발생';
                 msgDiv.className = 'alert alert-danger';
                 msgDiv.style.display = 'block';
+            }
+        });
+
+        // 반 목록 불러오기
+        async function loadClasses() {
+            const res = await fetch('/get_classes');
+            const classes = await res.json();
+            const classSelect = document.getElementById('classSelect');
+            classSelect.innerHTML = '<option value="">반을 선택하세요</option>';
+            classes.forEach(cls => {
+                const option = document.createElement('option');
+                option.value = cls;
+                option.textContent = cls + '반';
+                classSelect.appendChild(option);
+            });
+        }
+
+        // 반 선택 시 학생 목록 불러오기
+        async function loadStudentsByClass(classNumber) {
+            const studentSelect = document.getElementById('studentSelect');
+            studentSelect.innerHTML = '<option value="">학생을 선택하세요</option>';
+            if (!classNumber) return;
+            const res = await fetch(`/get_students_by_class/${classNumber}`);
+            const students = await res.json();
+            students.forEach(student => {
+                const option = document.createElement('option');
+                option.value = student.id;
+                option.textContent = `${student.student_number}번 ${student.name}`;
+                studentSelect.appendChild(option);
+            });
+        }
+
+        document.getElementById('classSelect').addEventListener('change', function() {
+            loadStudentsByClass(this.value);
+        });
+
+        document.addEventListener('DOMContentLoaded', function() {
+            loadClasses();
+        });
+
+        // 학생 명단 전체 삭제
+        const deleteAllBtn = document.getElementById('deleteAllStudentsBtn');
+        deleteAllBtn.addEventListener('click', async function() {
+            if (!confirm('정말 학생 명단을 모두 삭제하시겠습니까? (운동 기록도 함께 삭제됩니다)')) return;
+            const res = await fetch('/delete_all_students', { method: 'DELETE' });
+            const result = await res.json();
+            if (result.message) {
+                alert(result.message);
+                loadStudents();
+                loadClasses();
+                document.getElementById('studentSelect').innerHTML = '<option value="">학생을 선택하세요</option>';
+            } else {
+                alert(result.error || '삭제 중 오류 발생');
             }
         });
     </script>
