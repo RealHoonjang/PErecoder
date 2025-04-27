@@ -11,6 +11,7 @@ import os
 import matplotlib
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask import session as flask_session
+import matplotlib.font_manager as fm
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'default_secret_key')
@@ -55,7 +56,10 @@ Base.metadata.create_all(engine)
 
 print("서버 실행 시작")
 
-matplotlib.rc('font', family='Malgun Gothic')  # 윈도우 한글 폰트
+# 폰트 경로 지정
+font_path = 'fonts/NotoSansCJKkr-Regular.otf'
+fontprop = fm.FontProperties(fname=font_path)
+matplotlib.rc('font', family=fontprop.get_name())
 matplotlib.rcParams['axes.unicode_minus'] = False
 
 @app.route('/')
