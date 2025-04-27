@@ -58,8 +58,7 @@ print("서버 실행 시작")
 
 # 폰트 경로 지정
 font_path = 'fonts/NotoSansCJKkr-Regular.otf'
-matplotlib.rcParams['font.family'] = fm.FontProperties(fname=font_path).get_name()
-matplotlib.rcParams['font.sans-serif'] = [fm.FontProperties(fname=font_path).get_name()]
+fontprop = fm.FontProperties(fname=font_path)
 matplotlib.rcParams['axes.unicode_minus'] = False
 
 @app.route('/')
@@ -195,11 +194,12 @@ def get_graph(student_id):
         plt.figure(figsize=(12, 6))
         plt.plot(range(1, len(values)+1), values, marker='o', linestyle='-', linewidth=2, markersize=8, color='#4a90e2')
         for i, (x, y) in enumerate(zip(range(1, len(values)+1), values)):
-            plt.text(x, y, f"{records[i].exercise_type}", fontsize=10, ha='center', va='bottom')
-        plt.title(f'{student.name} 학생의 운동 기록', fontsize=14, pad=20)
-        plt.xlabel('입력 회차', fontsize=12)
-        plt.ylabel('기록', fontsize=12)
-        plt.xticks(range(1, len(values)+1), labels, rotation=30, ha='right')
+            plt.text(x, y, f"{records[i].exercise_type}", fontsize=10, ha='center', va='bottom', fontproperties=fontprop)
+        plt.title(f'{student.name} 학생의 운동 기록', fontsize=14, pad=20, fontproperties=fontprop)
+        plt.xlabel('입력 회차', fontsize=12, fontproperties=fontprop)
+        plt.ylabel('기록', fontsize=12, fontproperties=fontprop)
+        plt.xticks(range(1, len(values)+1), labels, rotation=30, ha='right', fontproperties=fontprop)
+        plt.yticks(fontproperties=fontprop)
         plt.grid(True, linestyle='--', alpha=0.7)
         plt.tight_layout()
         img = BytesIO()
