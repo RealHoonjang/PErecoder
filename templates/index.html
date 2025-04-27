@@ -208,7 +208,6 @@
                 
                 students.forEach(student => {
                     const option = `<option value="${student.id}">${student.class_number}반 ${student.student_number}번 ${student.name}</option>`;
-                    studentSelect.innerHTML += option;
                     viewStudentSelect.innerHTML += option;
                 });
             } catch (error) {
